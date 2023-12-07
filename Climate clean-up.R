@@ -46,28 +46,3 @@ sum(!complete.cases(summer$TMIN))
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-# # # # # # # # # #
-## PRISM Data ----
-# # # # # # # # # #
-
-prism_set_dl_dir("~/prismtmp")
-
-TMIN <- get_prism_dailys(
-  type = "tmin", 
-  minDate = "1981-01-01", 
-  maxDate = "2023-12-01", 
-  keepZip = FALSE
-)
-
