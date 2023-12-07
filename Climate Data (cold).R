@@ -1,7 +1,9 @@
 ## R code to manipulate and plot climate data for my three field sites ##
 ## Code from Joe Joe Endris ##
+#specifically focusing on cold temperatures and last freeze date needed for latitudinal testing of freeze tolerance
 
 library(readr)
+library(readxl)
 library(dplyr)
 library(tidyverse)
 library(ggplot2)
@@ -10,11 +12,16 @@ library(tidyr)
 
 ##temp<-read.csv("~/Library/CloudStorage/GoogleDrive-jendris@my.apsu.edu/.shortcut-targets-by-id/1p5eHgH8eX9-QjkyyA3uRz5Lk7ontMZtO/Rehm lab - General/Trees/5- Climate/Climate Data/Alabama.csv")
 setwd("~/Library/CloudStorage/GoogleDrive-jendris@my.apsu.edu/.shortcut-targets-by-id/1p5eHgH8eX9-QjkyyA3uRz5Lk7ontMZtO/Rehm lab - General/Trees/5- Climate/")
+#read in data
+clim<-read_excel("climate.xlsx")
+#limit data to that only since 1980
+clim<-clim%>%
+  filter(year(DATE)>1979)
 
 ## create objects from datasets##
-AL <- read_csv("Alabama.csv")
-TN <- read_csv("Tennessee.csv")
-IN <- read_csv("Indiana.csv")
+AL <- clim%>%filter(STATION=="USC00018385")
+TN <- clim%>%filter(STATION=="USC00401790")
+IN <- clim%>%filter(STATION=="USC00120784")
 
 ##################################
 ####Alabama segment starts here###
@@ -26,12 +33,12 @@ str(AL)  #view structure of data ##
 AL <- mutate(AL, julian_date=format(DATE,"%j"))
 
 #omit NA in temperature recordings 
-AL<-AL[complete.cases(AL[,5]),]
+AL<-AL%>%
+  na.omit(TMIN)
 
 #calculate last day below freezing for each year
-temp<-AL_last <- AL%>%
+AL_last <- AL%>%
   filter(TMIN<0)%>%
-  filter(year(DATE)>1979)%>%
   filter(julian_date<180)%>%
   group_by(year(DATE))%>%
   filter(row_number()==n())
@@ -121,24 +128,51 @@ AL_monthly_mean_plot <- ggplot(AL_month_mean, aes(x= month, y=mean_low))+
 
 AL_monthly_mean_plot
 
+################################################################
+################################################################
+#code previously written by Evan
+#investigate the date of the last frost in spring
+#getting last day of last frost below 0, -2,-5 and -8
+lowest<-subset(temp,temp=="TMIN")#create a dataframe of only minimum temperatures
+spring<-lowest%>%#use only the minimum temperature data
+  filter(month<=6)%>%#use only dates before July 1
+  #filter(year>=1990)%>%#use only years after 1990
+  filter(celcius<=-1)%>%#can change this to whatever temperature you like, currently I am taking only temperature less than 0C
+  group_by(year,site)%>%#group within a year and by site so we get the latest temp per year
+  slice(tail(row_number(),1))%>%#slicing out the last date when temperature is below 0C
+  summarise(last_spring=last(celcius),
+            month=month,#keeping the month variable in the new dataframe
+            day=day,#keeping the day variable in the new dataframe
+            DATE=DATE,#keeping the DATE variable in the new dataframe
+            Julian=Julian)#keeping the Julian variable in the new dataframe
 
+#Remove 2022 as data are incomplete
+spring<-spring[which(spring$year!=2022),]
 
+#plot last freezing date over time
+ggplot(spring,aes(year,Julian,group=site,color=site))+
+  geom_line()+
+  theme_classic()+
+  ylab("Julian date of last -1C temperature")
 
+#Average date of last freezing date
+spring%>%
+  group_by(site)%>%
+  summarise(ave=mean(Julian))
 
+#Average date of last freezing date since 2000
+spring%>%
+  filter(year>1999)%>%
+  group_by(site)%>%
+  summarise(ave=mean(Julian))
 
+ggplot(spring,aes(year,dayofyear))+
+  geom_point()+
+  geom_line()+
+  geom_smooth(method=lm)
 
-####################################
-####Tennessee segment starts here###
-####################################
-
-
-
-##################################
-####Indiana segment starts here###
-##################################
-
-
-
-#Issues to correct
-#how to account for/correct leap days in Julian date count
-#Line 32 - calculation for last freeze of the year
+#calculate last spring frost as a moving average (5-year moving average)
+move_ave<-spring%>%
+  select(year,dayofyear)%>%
+  mutate(srate=rollmean(dayofyear,k=5,fill=NA))#change k to determine interval
+#remove 2021 as data are not complete
