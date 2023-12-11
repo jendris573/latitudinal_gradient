@@ -14,6 +14,7 @@ library(readxl)
 library(gridExtra)
 library(MuMIn)
 library(fitdistrplus)
+library(xlsx)
 
 #read in raw data for LT50 values
 outputs<-read_excel("data/LT50 master.xlsx")
@@ -65,3 +66,11 @@ mod_simple<-glm(LT50~State+last_freeze+Species,data=outputs,na.action="na.fail")
 summary(mod_simple)
 AIC(mod_simple)
 
+#output mean, se and sd estimates for each species, location and sampling period
+outputs_sum<-outputs%>%
+  group_by(State,Species,last_freeze,julian_date)%>%
+  summarize(mean=mean(LT50),
+            sd=sd(LT50),
+            se=sd/sqrt(n()))
+#write this to the folder for use in other scripts
+write.xlsx(as.data.frame(outputs_sum),"data/LT50_summary.xlsx")
