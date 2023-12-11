@@ -42,7 +42,7 @@ AL_last <- AL%>%
   filter(julian_date<180)%>%
   group_by(year(DATE))%>%
   filter(row_number()==n())
-mean(as.numeric(temp$julian_date))
+mean(as.numeric(AL_last$julian_date))
 
 ## monthly absolute low temp ##
 AL_TMIN <- AL %>%
